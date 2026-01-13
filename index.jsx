@@ -93,79 +93,87 @@ const hslToHex = ({ h, s, l }) => {
 
 const hexToHsl = (hex) => rgbToHsl(hexToRgb(hex));
 
-const buildSynestheticProfile = ({ h, s, l }) => {
-    const temperature =
-        h >= 25 && h <= 80
-            ? "sun-warm"
-            : h >= 81 && h <= 165
-            ? "verdant"
-            : h >= 166 && h <= 250
-            ? "cool"
-            : h >= 251 && h <= 325
-            ? "dusky"
-            : "ember";
-    const texture =
-        s >= 70 && l <= 55
-            ? "lacquer"
-            : s >= 55 && l > 55
-            ? "glass"
-            : s < 30 && l >= 70
-            ? "chalk"
-            : s < 30 && l < 40
-            ? "ink"
-            : "velvet";
-    const sound =
-        s >= 70
-            ? "chime"
-            : s >= 45
-            ? "thrum"
-            : l >= 70
-            ? "hush"
-            : "crackle";
-
-    return { temperature, texture, sound };
-};
-
-const buildBrandFeel = ({ temperature, texture, sound }) =>
-    `A ${temperature} palette with ${texture} finish and a ${sound}-like energy.`;
-
-const remixPresets = {
-    Calm: { stretch: 12, soften: 28 },
-    Punchy: { stretch: 42, soften: 6 },
-    Editorial: { stretch: 28, soften: 16 },
-    Heritage: { stretch: 22, soften: 22 },
-};
+const remixPresets = [
+    {
+        label: "Neutral",
+        values: {
+            contrast: 24,
+            saturation: 0,
+            lightness: 0,
+            hueShift: 0,
+        },
+    },
+    {
+        label: "Vivid",
+        values: {
+            contrast: 62,
+            saturation: 28,
+            lightness: 6,
+            hueShift: 18,
+        },
+    },
+    {
+        label: "Moody",
+        values: {
+            contrast: 70,
+            saturation: -10,
+            lightness: -18,
+            hueShift: -22,
+        },
+    },
+    {
+        label: "Warm",
+        values: {
+            contrast: 46,
+            saturation: 16,
+            lightness: 10,
+            hueShift: 28,
+        },
+    },
+    {
+        label: "Cool",
+        values: {
+            contrast: 46,
+            saturation: 12,
+            lightness: 8,
+            hueShift: -28,
+        },
+    },
+];
 
 const buildPalette = (base, remix) => {
-    const stretch = remix.stretch / 100;
-    const softened = clamp(base.s * (1 - remix.soften / 100), 10, 90);
-    const baseTone = {
-        h: base.h,
-        s: softened,
-        l: clamp(base.l, 18, 82),
-    };
+    const contrast = remix.contrast / 100;
+    const baseHue = wrapHue(base.h + remix.hueShift);
+    const baseSat = clamp(base.s + remix.saturation, 8, 96);
+    const baseLight = clamp(base.l + remix.lightness, 10, 88);
+    const accentHue = wrapHue(baseHue + 140);
 
     return {
-        primary: baseTone,
+        primary: { h: baseHue, s: baseSat, l: baseLight },
+        secondary: {
+            h: wrapHue(baseHue + 32),
+            s: clamp(baseSat - 10 + contrast * 10, 10, 90),
+            l: clamp(baseLight + 4, 14, 88),
+        },
         accent: {
-            h: wrapHue(base.h + 120),
-            s: clamp(softened + 14, 18, 96),
-            l: clamp(baseTone.l + 8 * stretch + 4, 20, 88),
+            h: accentHue,
+            s: clamp(baseSat + 12 + contrast * 12, 16, 98),
+            l: clamp(baseLight + 12 + contrast * 10, 14, 90),
         },
         surface: {
-            h: base.h,
-            s: clamp(8 + softened * 0.18, 6, 26),
-            l: clamp(94 - stretch * 8, 86, 98),
+            h: wrapHue(baseHue + 6),
+            s: clamp(6 + baseSat * 0.12, 4, 22),
+            l: clamp(96 - contrast * 22, 82, 98),
         },
         text: {
-            h: base.h,
-            s: clamp(10 + softened * 0.1, 6, 24),
-            l: clamp(12 - stretch * 5, 6, 20),
+            h: baseHue,
+            s: clamp(8 + baseSat * 0.1, 4, 24),
+            l: clamp(12 - contrast * 10, 4, 20),
         },
         border: {
-            h: base.h,
-            s: clamp(12 + softened * 0.12, 8, 30),
-            l: clamp(78 - stretch * 6, 64, 88),
+            h: baseHue,
+            s: clamp(10 + baseSat * 0.12, 6, 30),
+            l: clamp(80 - contrast * 18, 54, 90),
         },
     };
 };
@@ -174,8 +182,10 @@ export const ColorPicker = () => {
     const containerRef = useRef(null);
     const [color, setColor] = useState("#ffffff");
     const [remix, setRemix] = useState({
-        stretch: 20,
-        soften: 14,
+        contrast: 24,
+        saturation: 0,
+        lightness: 0,
+        hueShift: 0,
     });
     const handleColorChange = (event) => {
         const nextColor = event.target.value;
@@ -184,13 +194,19 @@ export const ColorPicker = () => {
             containerRef.current.style.backgroundColor = nextColor;
         }
     };
+    const applyPreset = (values) => {
+        setRemix(values);
+    };
+    const updateRemix = (key) => (event) => {
+        const nextValue = Number(event.target.value);
+        setRemix((prev) => ({ ...prev, [key]: nextValue }));
+    };
 
     const baseHsl = hexToHsl(color);
-    const profile = buildSynestheticProfile(baseHsl);
-    const brandFeel = buildBrandFeel(profile);
     const palette = buildPalette(baseHsl, remix);
     const roles = [
         { label: "Primary", hex: hslToHex(palette.primary) },
+        { label: "Secondary", hex: hslToHex(palette.secondary) },
         { label: "Accent", hex: hslToHex(palette.accent) },
         { label: "Surface", hex: hslToHex(palette.surface) },
         { label: "Text", hex: hslToHex(palette.text) },
@@ -205,11 +221,11 @@ export const ColorPicker = () => {
         >
             <header className="app-header">
                 <div className="header-card">
-                    <p className="eyebrow">Synesthetic Picker</p>
-                    <h1>Brand Kit Generator</h1>
+                    <h1>Palette Kit Generator</h1>
                     <p className="subtitle">
-                        Minimal palette shaping with a sensory readout.
+                        Palettes from a single base colour.
                     </p>
+                    <p className="hero-hex">Hex {color.toUpperCase()}</p>
                 </div>
             </header>
 
@@ -223,23 +239,8 @@ export const ColorPicker = () => {
             />
 
             <section className="panel">
-                <div className="meta-row">
-                    <div>
-                        <p className="meta-label">Base tone</p>
-                        <p className="meta-value">{color.toUpperCase()}</p>
-                    </div>
-                    <div className="tag-row">
-                        <span className="tag">{profile.texture}</span>
-                        <span className="tag">{profile.temperature}</span>
-                        <span className="tag">{profile.sound}</span>
-                    </div>
-                </div>
-                <p className="brand-feel">{brandFeel}</p>
-
-                <div className="divider" />
-
                 <div className="panel-header">
-                    <h2>Brand kit</h2>
+                    <h2>Core Roles</h2>
                 </div>
                 <div className="swatch-grid">
                     {roles.map((role) => (
@@ -252,9 +253,7 @@ export const ColorPicker = () => {
                                 <span className="swatch-name">
                                     {role.label}
                                 </span>
-                                <span className="swatch-hex">
-                                    {role.hex}
-                                </span>
+                                <span className="swatch-hex">{role.hex}</span>
                             </div>
                         </div>
                     ))}
@@ -263,53 +262,71 @@ export const ColorPicker = () => {
                 <div className="divider" />
 
                 <div className="panel-header">
-                    <h2>Palette remix</h2>
+                    <h2>Palette Remix</h2>
                 </div>
                 <div className="remix-controls">
                     <label className="slider-row">
-                        <span>Stretch</span>
+                        <span>Contrast</span>
                         <input
                             type="range"
                             min="0"
-                            max="60"
-                            value={remix.stretch}
-                            onChange={(event) =>
-                                setRemix({
-                                    ...remix,
-                                    stretch: Number(event.target.value),
-                                })
-                            }
+                            max="90"
+                            value={remix.contrast}
+                            onChange={updateRemix("contrast")}
                         />
                         <span className="slider-value">
-                            {remix.stretch}
+                            {remix.contrast}
                         </span>
                     </label>
                     <label className="slider-row">
-                        <span>Soften</span>
+                        <span>Saturation</span>
                         <input
                             type="range"
-                            min="0"
-                            max="50"
-                            value={remix.soften}
-                            onChange={(event) =>
-                                setRemix({
-                                    ...remix,
-                                    soften: Number(event.target.value),
-                                })
-                            }
+                            min="-40"
+                            max="40"
+                            value={remix.saturation}
+                            onChange={updateRemix("saturation")}
                         />
-                        <span className="slider-value">{remix.soften}</span>
+                        <span className="slider-value">
+                            {remix.saturation}
+                        </span>
+                    </label>
+                    <label className="slider-row">
+                        <span>Lightness</span>
+                        <input
+                            type="range"
+                            min="-30"
+                            max="30"
+                            value={remix.lightness}
+                            onChange={updateRemix("lightness")}
+                        />
+                        <span className="slider-value">
+                            {remix.lightness}
+                        </span>
+                    </label>
+                    <label className="slider-row">
+                        <span>Hue Shift</span>
+                        <input
+                            type="range"
+                            min="-60"
+                            max="60"
+                            value={remix.hueShift}
+                            onChange={updateRemix("hueShift")}
+                        />
+                        <span className="slider-value">
+                            {remix.hueShift}
+                        </span>
                     </label>
                 </div>
                 <div className="preset-row">
-                    {Object.entries(remixPresets).map(([label, values]) => (
+                    {remixPresets.map((preset) => (
                         <button
                             className="preset-button"
-                            key={label}
+                            key={preset.label}
                             type="button"
-                            onClick={() => setRemix(values)}
+                            onClick={() => applyPreset(preset.values)}
                         >
-                            {label}
+                            {preset.label}
                         </button>
                     ))}
                 </div>
