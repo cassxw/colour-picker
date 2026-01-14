@@ -1,8 +1,12 @@
 const { useRef, useState } = React;
 
+// Clamp avoid colour math artifacts.
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+// However, hue should wrap rather than clamp, so shifts feel continuous.
 const wrapHue = (hue) => ((hue % 360) + 360) % 360;
 
+// Convert hex to RGB.
 const hexToRgb = (hex) => {
     const cleaned = hex.replace("#", "");
     const normalized =
@@ -21,6 +25,7 @@ const hexToRgb = (hex) => {
     };
 };
 
+// HSL is easier to remix (contrast/saturation/lightness) than raw RGB.
 const rgbToHsl = ({ r, g, b }) => {
     const rNorm = r / 255;
     const gNorm = g / 255;
@@ -52,6 +57,7 @@ const rgbToHsl = ({ r, g, b }) => {
     };
 };
 
+// Convert edited HSL back to hex for display and swatches.
 const hslToHex = ({ h, s, l }) => {
     const sNorm = s / 100;
     const lNorm = l / 100;
@@ -91,8 +97,10 @@ const hslToHex = ({ h, s, l }) => {
     return `#${toHex(r)}${toHex(g)}${toHex(b)}`.toUpperCase();
 };
 
+// Single-source conversion, so UI state remains hex-driven.
 const hexToHsl = (hex) => rgbToHsl(hexToRgb(hex));
 
+// Presets are intentionally set to show quite large, visible jumps.
 const remixPresets = [
     {
         label: "Neutral",
@@ -141,6 +149,7 @@ const remixPresets = [
     },
 ];
 
+// Build palette colours.
 const buildPalette = (base, remix) => {
     const contrast = remix.contrast / 100;
     const baseHue = wrapHue(base.h + remix.hueShift);
@@ -181,12 +190,16 @@ const buildPalette = (base, remix) => {
 export const ColorPicker = () => {
     const containerRef = useRef(null);
     const [color, setColor] = useState("#ffffff");
+
+    // Remix values are kept as single object.
     const [remix, setRemix] = useState({
         contrast: 24,
         saturation: 0,
         lightness: 0,
         hueShift: 0,
     });
+
+    // Directly update container style.
     const handleColorChange = (event) => {
         const nextColor = event.target.value;
         setColor(nextColor);
@@ -194,14 +207,19 @@ export const ColorPicker = () => {
             containerRef.current.style.backgroundColor = nextColor;
         }
     };
+
+    // Presets replace whole remix state for clear before/after changes.
     const applyPreset = (values) => {
         setRemix(values);
     };
+
+    // Small helper to keep slider handlers concise and consistent.
     const updateRemix = (key) => (event) => {
         const nextValue = Number(event.target.value);
         setRemix((prev) => ({ ...prev, [key]: nextValue }));
     };
 
+    // Derive roles from the chosen color + current remix settings.
     const baseHsl = hexToHsl(color);
     const palette = buildPalette(baseHsl, remix);
     const roles = [
@@ -219,6 +237,7 @@ export const ColorPicker = () => {
             ref={containerRef}
             style={{ backgroundColor: color }}
         >
+            {/* Title block stays on a card for readability. */}
             <header className="app-header">
                 <div className="header-card">
                     <h1>Palette Kit Generator</h1>
@@ -229,6 +248,7 @@ export const ColorPicker = () => {
                 </div>
             </header>
 
+            {/* Native input preserves expected color-picker behavior. */}
             <input
                 id="color-input"
                 type="color"
@@ -238,10 +258,14 @@ export const ColorPicker = () => {
                 aria-label="Pick a base color"
             />
 
+            {/* Vertical layout keeps roles and remix separated. */}
             <section className="panel">
+
                 <div className="panel-header">
                     <h2>Core Roles</h2>
                 </div>
+
+                {/* Roles are the output users can ship as a palette. */}
                 <div className="swatch-grid">
                     {roles.map((role) => (
                         <div className="swatch" key={role.label}>
@@ -264,6 +288,8 @@ export const ColorPicker = () => {
                 <div className="panel-header">
                     <h2>Palette Remix</h2>
                 </div>
+
+                {/* Sliders give continuous control for tuning. */}
                 <div className="remix-controls">
                     <label className="slider-row">
                         <span>Contrast</span>
@@ -318,6 +344,8 @@ export const ColorPicker = () => {
                         </span>
                     </label>
                 </div>
+                
+                {/* Presets offer quick jumps for exploration. */}
                 <div className="preset-row">
                     {remixPresets.map((preset) => (
                         <button

@@ -4,9 +4,7 @@
     color-scheme: light;
     --ink: #111115;
     --muted: #4a4a55;
-    --panel: #ffffff;
     --border: #e3e3e7;
-    --shadow: rgba(13, 13, 18, 0.08);
 }
 
 * {
@@ -25,6 +23,7 @@ html {
 }
 
 #color-picker-container {
+    /* Centered stack keeps focus on picker + palette. */
     min-height: 100vh;
     padding: clamp(24px, 4vw, 48px);
     display: grid;
@@ -46,14 +45,6 @@ html {
     padding: 22px 24px;
     box-shadow: 12px 12px 0 rgba(0, 0, 0, 0.12);
     display: inline-block;
-}
-
-.eyebrow {
-    margin: 0 0 8px;
-    font-size: 13px;
-    letter-spacing: 0.3em;
-    text-transform: uppercase;
-    color: var(--muted);
 }
 
 h1 {
@@ -80,6 +71,7 @@ h1 {
 
 #color-input {
     -webkit-appearance: none;
+    appearance: none;
     border: none;
     width: 78px;
     height: 78px;
@@ -99,6 +91,7 @@ h1 {
 }
 
 .panel {
+    /* Main card carries both palette and remix controls as a single unit. */
     width: min(980px, 100%);
     background: #ffffff;
     border: 2px solid #111115;
@@ -216,6 +209,8 @@ h1 {
 }
 
 @media (max-width: 640px) {
+    /* Stack roles on small screens to preserve clarity. */
+    
     .panel {
         padding: 24px;
     }
